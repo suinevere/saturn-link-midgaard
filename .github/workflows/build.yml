@@ -1,0 +1,245 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SH2_GCC_VERSION: 14.2.0
+  ISO2RAW_VERSION: v0.2.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with SDK submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xorriso sox unzip wget
+
+      - name: Run host tests
+        run: tests/run.sh
+
+      - name: Build and exercise the host harness
+        run: |
+          host/build.sh
+          python3 tests/fixture_mud.py 5599 > fixture.log 2>&1 &
+          fixture=$!
+          sleep 1
+          timeout 20 host/cmud-host 127.0.0.1 5599 > harness.out 2>&1 </dev/null || true
+          wait $fixture
+          cat fixture.log
+
+      - name: Resolve SDK commit
+        id: sdk
+        run: echo "sha=$(git rev-parse HEAD:SaturnRingLib)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache SH-2 toolchain
+        id: toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            SaturnRingLib/Compiler
+            SaturnRingLib/tools/bin/lin
+          key: srl-toolchain-${{ runner.os }}-${{ steps.sdk.outputs.sha }}-gcc${{ env.SH2_GCC_VERSION }}-iso2raw${{ env.ISO2RAW_VERSION }}
+
+      - name: Fetch SH-2 toolchain and iso2raw
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        working-directory: SaturnRingLib
+        run: |
+          ./tools/scripts/getcompiler.sh "$SH2_GCC_VERSION"
+          ./tools/scripts/getiso2raw.sh "$ISO2RAW_VERSION"
+
+      - name: Put the cross-compiler on PATH
+        run: |
+          echo "$GITHUB_WORKSPACE/SaturnRingLib/Compiler/linux/sh2eb-elf/bin" >> "$GITHUB_PATH"
+          chmod -R +x SaturnRingLib/Compiler/linux SaturnRingLib/tools/bin/lin
+
+      - name: Verify toolchain
+        run: sh2eb-elf-gcc --version
+
+      - name: Read CD_NAME
+        id: disc
+        run: |
+          name=$(sed -n 's/^[[:space:]]*CD_NAME[[:space:]]*=[[:space:]]*//p' saturn/makefile | head -n1 | sed 's/[[:space:]]*$//')
+          if [ -z "$name" ]; then echo "CD_NAME not found in saturn/makefile" >&2; exit 1; fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Disc name: $name"
+
+      - name: Build netbin
+        working-directory: saturn
+        run: bash ./compile-netbin.bat release
+
+      - name: Build release disc
+        working-directory: saturn
+        run: bash ./compile.bat release
+
+      - name: Verify disc image
+        working-directory: saturn
+        run: |
+          name='${{ steps.disc.outputs.name }}'
+          for ext in bin cue iso elf; do
+            test -s "BuildDrop/$name.$ext" || { echo "missing or empty BuildDrop/$name.$ext" >&2; exit 1; }
+          done
+          grep -qF "FILE \"$name.bin\" BINARY" "BuildDrop/$name.cue" \
+            || { echo "cue FILE line does not name $name.bin" >&2; cat "BuildDrop/$name.cue"; exit 1; }
+          size=$(stat -c%s "BuildDrop/$name.bin")
+          [ $((size % 2352)) -eq 0 ] \
+            || { echo "bin is $size bytes, not a whole number of 2352-byte MODE1/2352 sectors" >&2; exit 1; }
+          echo "OK: $name.bin is $size bytes ($((size / 2352)) sectors)"
+          cat "BuildDrop/$name.cue"
+
+      - name: Verify netbin
+        working-directory: saturn
+        run: |
+          test -s BuildDrop/coffeemud.netbin || { echo 'missing coffeemud.netbin' >&2; exit 1; }
+          sz=$(stat -c%s BuildDrop/coffeemud.netbin)
+          echo "coffeemud.netbin: $sz bytes"
+          [ "$sz" -le 409600 ] || { echo 'netbin over the 400 KB loader ceiling' >&2; exit 1; }
+          [ "$sz" -gt 4096 ] || { echo 'netbin implausibly small - did the link fail?' >&2; exit 1; }
+
+      - name: Stage disc for upload
+        run: |
+          name='${{ steps.disc.outputs.name }}'
+          mkdir -p dist
+          cp "saturn/BuildDrop/$name.bin" "saturn/BuildDrop/$name.cue" dist/
+          cp saturn/BuildDrop/coffeemud.netbin dist/
+
+      - name: Upload disc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: saturn-disc
+          path: dist/
+          if-no-files-found: error
+
+      - name: Package release zip
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          name='${{ steps.disc.outputs.name }}'
+          zipname="${name} ${GITHUB_REF_NAME}.zip"
+          (cd dist && zip -r "../$zipname" .)
+          echo "ZIP_NAME=$zipname" >> "$GITHUB_ENV"
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Hash the netbin for the dispatch
+        id: netbin
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          sha=$(sha256sum dist/coffeemud.netbin | cut -d' ' -f1)
+          echo "coffeemud.netbin sha256 $sha"
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Tell suin.uk the release is up
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          DISPATCH_TOKEN: ${{ secrets.SUINEVERE_CI_PAT }}
+          NETBIN_SHA: ${{ steps.netbin.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISPATCH_TOKEN:-}" ]; then
+            echo "SUINEVERE_CI_PAT is unset; suin.uk will not learn about ${GITHUB_REF_NAME}" >&2
+            echo "add it as a repository secret with Contents: read and write on suinevere/suin-uk," >&2
+            echo "and Contents: read on suinevere/saturn-link-midgaard so the sync can fetch this release" >&2
+            exit 1
+          fi
+          [ "${#NETBIN_SHA}" -eq 64 ] \
+            || { echo "netbin sha256 is '$NETBIN_SHA', not a sha256 -- nothing to dispatch" >&2; exit 1; }
+          code=$(curl -sS -o /tmp/dispatch.out -w '%{http_code}' \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $DISPATCH_TOKEN" \
+            https://api.github.com/repos/suinevere/suin-uk/dispatches \
+            -d "$(printf '{"event_type":"coffeemud-release","client_payload":{"tag":"%s","netbin_sha256":"%s"}}' \
+                    "$GITHUB_REF_NAME" "$NETBIN_SHA")")
+          echo "dispatch HTTP $code"
+          if [ "$code" != "204" ]; then
+            cat /tmp/dispatch.out >&2
+            echo "403 here means SUINEVERE_CI_PAT lacks Contents: read and write on suinevere/suin-uk, or has expired" >&2
+            exit 1
+          fi
+
+  dreamcast:
+    runs-on: ubuntu-latest
+    container:
+      image: kazade/dreamcast-sdk@sha256:7202a5d5d007bcb7802c48f1bf30b22d03e337927543b5396130f8420c6f37ec
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build CDI
+        working-directory: dreamcast
+        env:
+          CMUD_SECRET: ${{ secrets.CMUD_DC_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CMUD_SECRET:-}" ]; then
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "CMUD_DC_SECRET is unset; a released disc without it cannot log in" >&2
+              exit 1
+            fi
+            echo "CMUD_DC_SECRET is unset; building a disc that skips the AUTH handshake"
+          fi
+          set +u
+          source /opt/toolchains/dc/kos/environ.sh
+          set -u
+          make cdi CMUD_SECRET="${CMUD_SECRET:-}"
+
+      - name: Verify CDI
+        working-directory: dreamcast
+        run: |
+          set -euo pipefail
+          test -s build/cmud.cdi || { echo 'missing build/cmud.cdi' >&2; exit 1; }
+          grep -q 'SEGA SEGAKATANA' build/cmud.cdi || { echo 'no IP.BIN in the CDI' >&2; exit 1; }
+          grep -aq '1ST_READ.BIN' build/cmud.cdi || { echo 'no 1ST_READ.BIN in the CDI' >&2; exit 1; }
+          sz=$(stat -c%s build/cmud.cdi)
+          echo "cmud.cdi: $sz bytes"
+          [ "$sz" -gt 1048576 ] || { echo 'CDI implausibly small - did the link fail?' >&2; exit 1; }
+
+      - name: Upload CDI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dreamcast-disc
+          path: dreamcast/build/cmud.cdi
+          if-no-files-found: error
+
+  dreamcast-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, dreamcast]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download CDI
+        uses: actions/download-artifact@v4
+        with:
+          name: dreamcast-disc
+
+      - name: Name the CDI for the release
+        run: mv cmud.cdi "CoffeeMUD Dreamcast ${GITHUB_REF_NAME}.cdi"
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CoffeeMUD Dreamcast ${{ github.ref_name }}.cdi
+          fail_on_unmatched_files: true
