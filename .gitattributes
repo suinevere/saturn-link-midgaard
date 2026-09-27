@@ -1,0 +1,12 @@
+saturn/compile.bat            text eol=lf
+saturn/compile-netbin.bat     text eol=lf
+saturn/clean.bat              text eol=lf
+saturn/run_with_mednafen.bat  text eol=lf
+
+.github/workflows/*.yml text eol=lf
+
+*.sh text eol=lf
+
+dreamcast/Makefile text eol=lf
+
+server/resources/text/*.txt text eol=crlf
