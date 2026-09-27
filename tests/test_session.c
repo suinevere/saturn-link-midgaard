@@ -58,7 +58,7 @@ static void setup(void)
 static int screen_has(const char *want)
 {
     int y;
-    for (y = 0; y < 12; y++) {
+    for (y = 0; y < rec.rows; y++) {
         if (strstr(rec_surface_row(&rec, y), want)) return 1;
     }
     return 0;
@@ -151,8 +151,42 @@ TEST(the_ruler_asks_the_platform_for_its_geometry)
     CHECK_INT(geometry_asks, 1);
 }
 
+static int recolours;
+
+static void count_recolour(void) { recolours++; }
+
+TEST(the_splash_names_the_game_before_dialling)
+{
+    setup();
+    rec_surface_init(&rec, 64, 40);
+    key(CMUD_KEY_CHAR, ' ');
+    session_splash();
+    CHECK_INT(script_pos, 1);
+    CHECK(screen_has("Saturn Link : Midgaard"));
+    CHECK(screen_has("/\\"));
+    CHECK(screen_has("CoffeeMUD"));
+}
+
+TEST(each_colour_key_asks_the_platform_to_recolour)
+{
+    CmudKeyEvent ev = { CMUD_KEY_F5, 0 };
+    setup();
+    recolours = 0;
+    plat.recolour = count_recolour;
+    session_handle_key(&ev);
+    ev.kind = CMUD_KEY_F6;
+    session_handle_key(&ev);
+    ev.kind = CMUD_KEY_F7;
+    session_handle_key(&ev);
+    ev.kind = CMUD_KEY_F8;
+    session_handle_key(&ev);
+    CHECK_INT(recolours, 4);
+}
+
 int main(void)
 {
+    RUN(the_splash_names_the_game_before_dialling);
+    RUN(each_colour_key_asks_the_platform_to_recolour);
     RUN(a_typed_line_reaches_the_link);
     RUN(the_platform_keeps_the_keys_it_claims);
     RUN(one_escape_does_not_hang_up);

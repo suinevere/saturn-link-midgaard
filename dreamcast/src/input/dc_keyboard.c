@@ -35,6 +35,9 @@ static CmudKeyKind special(int key, int ctrl)
     case KBD_KEY_RIGHT:     return ctrl ? CMUD_KEY_CTRL_RIGHT : CMUD_KEY_RIGHT;
     case KBD_KEY_UP:        return ctrl ? CMUD_KEY_CTRL_UP    : CMUD_KEY_UP;
     case KBD_KEY_DOWN:      return ctrl ? CMUD_KEY_CTRL_DOWN  : CMUD_KEY_DOWN;
+    case KBD_KEY_F5:        return CMUD_KEY_F5;
+    case KBD_KEY_F6:        return CMUD_KEY_F6;
+    case KBD_KEY_F7:        return CMUD_KEY_F7;
     case KBD_KEY_F8:        return CMUD_KEY_F8;
     case KBD_KEY_F9:        return CMUD_KEY_F9;
     case KBD_KEY_F10:       return CMUD_KEY_F10;

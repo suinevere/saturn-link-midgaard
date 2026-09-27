@@ -4,8 +4,13 @@
 #include "align_pattern.h"
 #include "line_edit.h"
 #include "telnet.h"
+#include "splash.h"
+#include "cell_attr.h"
+#include "colour_theme.h"
 
 #define CMUD_CARRIER_LOST_FRAMES 12
+
+#define CMUD_SPLASH_FRAMES 240
 
 #define CMUD_NAWS_SLACK 2
 
@@ -57,8 +62,27 @@ void session_say(const char *msg)
 {
     unsigned int n = 0;
     while (msg[n] != '\0') n++;
-    console_write(msg, n);
+    console_write_as(msg, n, CELL_ATTR_NOTE);
     console_write("\n", 1);
+}
+
+void session_splash(void)
+{
+    int f;
+
+    splash_write(surface_cols());
+    for (f = 0; f < CMUD_SPLASH_FRAMES; f++) {
+        CmudKeyEvent ev = g_plat->poll_key();
+        paint(0);
+        g_plat->wait_frame();
+        if (ev.kind != CMUD_KEY_NONE) return;
+    }
+}
+
+static void recolour(int role)
+{
+    colour_theme_cycle(role);
+    if (g_plat->recolour) g_plat->recolour();
 }
 
 void session_present(void)
@@ -98,11 +122,15 @@ void session_handle_key(const CmudKeyEvent *ev)
     case CMUD_KEY_PAGEDOWN:  console_view_scroll(&g_view, 20); break;
     case CMUD_KEY_CTRL_UP:   console_view_scroll(&g_view, -1); break;
     case CMUD_KEY_CTRL_DOWN: console_view_scroll(&g_view, 1); break;
+    case CMUD_KEY_F5:        recolour(COLOUR_ROLE_TEXT); break;
+    case CMUD_KEY_F6:        recolour(COLOUR_ROLE_YOU); break;
+    case CMUD_KEY_F7:        recolour(COLOUR_ROLE_NOTE); break;
+    case CMUD_KEY_F8:        recolour(COLOUR_ROLE_MUD); break;
     case CMUD_KEY_F9:        g_align = !g_align; break;
     case CMUD_KEY_ENTER:
         if (!telnet_server_echo(&g_telnet)) {
-            console_write("> ", 2);
-            console_write(g_edit.line, (unsigned int)g_edit.len);
+            console_write_as("> ", 2, CELL_ATTR_YOU);
+            console_write_as(g_edit.line, (unsigned int)g_edit.len, CELL_ATTR_YOU);
             console_write("\n", 1);
         }
         telnet_send_line(&g_telnet, g_edit.line);

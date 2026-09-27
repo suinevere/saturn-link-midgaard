@@ -41,7 +41,6 @@ static void toggle_width(void)
 static int on_key(const CmudKeyEvent *ev)
 {
     switch (ev->kind) {
-    case CMUD_KEY_F8:  surface_ascii_next_theme(); return 1;
     case CMUD_KEY_F10: toggle_width(); return 1;
     case CMUD_KEY_F11: surface_ascii_nudge(-1); return 1;
     case CMUD_KEY_F12: surface_ascii_nudge(1); return 1;
@@ -58,7 +57,7 @@ static void align_geometry(int *wide, int *gutter)
 static void say_dialling(int attempt)
 {
     char line[40];
-    const char *p = "DIALLING COFFEEMUD... (";
+    const char *p = "DIALLING MIDGAARD... (";
     int k = 0;
     while (*p != 0) line[k++] = *p++;
     line[k++] = (char)('0' + attempt);
@@ -139,7 +138,9 @@ int main()
     plat.close          = close_link;
     plat.on_key         = on_key;
     plat.align_geometry = align_geometry;
+    plat.recolour       = surface_ascii_recolour;
     session_init(&plat);
+    session_splash();
 
 #ifdef NETBIN
     net_connect_reset();

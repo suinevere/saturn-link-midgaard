@@ -129,7 +129,7 @@ static int connect_from_here(void)
     char line[64];
     const uint8_t *ip = net_default_dev->ip_addr;
 
-    snprintf(line, sizeof line, "CONNECTING TO COFFEEMUD FROM %d.%d.%d.%d...",
+    snprintf(line, sizeof line, "CONNECTING TO MIDGAARD FROM %d.%d.%d.%d...",
              ip[0], ip[1], ip[2], ip[3]);
     say_now(line);
     errno = 0;

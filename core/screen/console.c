@@ -66,11 +66,11 @@ static void rejoin(int newcols) {
     for (i = 0; i < oc; i++) {
         int how  = snapbrk[i];
         int slen = (int) strlen(snap[i]);
-        if (slen > 0)              console_write(snap[i], (unsigned int) slen);
+        if (slen > 0)              console_write_attr(snap[i], snapattr[i], (unsigned int) slen);
         if (how == BRK_PARA)       console_write("\n", 1);
-        else if (how == BRK_SPACE) console_write(" ", 1);
+        else if (how == BRK_SPACE) console_write_attr(" ", slen > 0 ? &snapattr[i][slen - 1] : 0, 1);
     }
-    if (keeplen > 0) console_write(keep, (unsigned int) keeplen);
+    if (keeplen > 0) console_write_attr(keep, keepattr, (unsigned int) keeplen);
 
     total_ever -= (long) oc;
 }
@@ -133,6 +133,19 @@ void console_write_attr(const char *str, const unsigned char *at, unsigned int l
         curattr[curlen] = a;
         cur[curlen++] = c;
         cur[curlen] = '\0';
+    }
+}
+
+void console_write_as(const char *str, unsigned int len, unsigned char attr) {
+    unsigned char at[CONSOLE_COLS];
+    unsigned int done = 0;
+
+    memset(at, attr, sizeof at);
+    while (done < len) {
+        unsigned int n = len - done;
+        if (n > sizeof at) n = sizeof at;
+        console_write_attr(str + done, at, n);
+        done += n;
     }
 }
 

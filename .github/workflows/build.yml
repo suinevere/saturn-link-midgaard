@@ -236,10 +236,10 @@ jobs:
           name: dreamcast-disc
 
       - name: Name the CDI for the release
-        run: mv cmud.cdi "CoffeeMUD Dreamcast ${GITHUB_REF_NAME}.cdi"
+        run: mv cmud.cdi "Saturn Link Midgaard Dreamcast ${GITHUB_REF_NAME}.cdi"
 
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
-          files: CoffeeMUD Dreamcast ${{ github.ref_name }}.cdi
+          files: Saturn Link Midgaard Dreamcast ${{ github.ref_name }}.cdi
           fail_on_unmatched_files: true

@@ -4,6 +4,7 @@
 
 #include "surface_term.h"
 #include "cell_attr.h"
+#include "colour_theme.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -58,16 +59,18 @@ static void st_clear(void *ctx)
 
 static void st_present(void *ctx)
 {
+    const uint16_t *pal = colour_theme_ink();
     int y;
     (void)ctx;
     printf("\033[H");
     for (y = 0; y < g_rows; y++) {
         int x, ink = -1;
         for (x = 0; x < g_cols; x++) {
-            int a = g_attr[y][x] & (ANSI_ATTR_COLOUR | ANSI_ATTR_BOLD);
+            int a = colour_theme_slot(g_attr[y][x]);
             if (a != ink) {
-                printf("\033[%d;%dm", (a & ANSI_ATTR_BOLD) ? 1 : 22,
-                       30 + (a & ANSI_ATTR_COLOUR));
+                unsigned v = pal[a];
+                printf("\033[38;2;%u;%u;%um", (v & 31) * 255 / 31,
+                       ((v >> 5) & 31) * 255 / 31, ((v >> 10) & 31) * 255 / 31);
                 ink = a;
             }
             putchar(g_cell[y][x]);

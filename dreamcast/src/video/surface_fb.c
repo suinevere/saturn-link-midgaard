@@ -26,9 +26,11 @@ static vid_mode_t FB_TV_240P = {
                                (((((v) >> 5) & 31) >> 4) << 5) | (((v) >> 10) & 31)))
 
 static uint16_t fb_ink[16];
-static int      fb_theme;
 static int      fb_480;
 static int      fb_left;
+static int      fb_inset;
+static int      fb_inset_480 = SURFACE_FB_INSET_DEFAULT;
+static int      fb_inset_240 = SURFACE_FB_INSET_DEFAULT;
 
 static char          fb_shadow[SURFACE_FB_ROWS][SURFACE_FB_COLS];
 static unsigned char fb_shadow_at[SURFACE_FB_ROWS][SURFACE_FB_COLS];
@@ -53,8 +55,8 @@ static unsigned char glyph_row(unsigned char c, int y)
 
 static void draw_cell(int cx, int cy, unsigned char c, unsigned char at)
 {
-    uint16_t ink = fb_ink[at & (ANSI_ATTR_COLOUR | ANSI_ATTR_BOLD)];
-    uint16_t *px = vram_s + (cy * fb_cell_h) * FB_STRIDE + (cx + fb_left) * FB_CELL_W;
+    uint16_t ink = fb_ink[colour_theme_slot(at)];
+    uint16_t *px = vram_s + ((cy + fb_inset) * fb_cell_h) * FB_STRIDE + (cx + fb_left) * FB_CELL_W;
     int y, x;
 
     for (y = 0; y < fb_cell_h; y++, px += FB_STRIDE) {
@@ -64,14 +66,14 @@ static void draw_cell(int cx, int cy, unsigned char c, unsigned char at)
 }
 
 static int fb_cols(void *ctx) { (void)ctx; return SURFACE_FB_COLS - fb_left; }
-static int fb_rows(void *ctx) { (void)ctx; return SURFACE_FB_ROWS; }
+static int fb_rows(void *ctx) { (void)ctx; return SURFACE_FB_ROWS - 2 * fb_inset; }
 
 static void fb_put(void *ctx, int x, int y, const char *s, const unsigned char *at)
 {
     int i;
 
     (void)ctx;
-    if (x < 0 || y < 0 || x >= SURFACE_FB_COLS - fb_left || y >= SURFACE_FB_ROWS) return;
+    if (x < 0 || y < 0 || x >= SURFACE_FB_COLS - fb_left || y >= fb_rows(0)) return;
     for (i = 0; x + i < SURFACE_FB_COLS - fb_left && s[i] != '\0'; i++) {
         fb_shadow[y][x + i] = s[i];
         fb_shadow_at[y][x + i] = at ? at[i] : (unsigned char)ANSI_ATTR_DEFAULT;
@@ -90,7 +92,7 @@ static void fb_present(void *ctx)
     int y;
 
     (void)ctx;
-    for (y = 0; y < SURFACE_FB_ROWS; y++) {
+    for (y = 0; y < fb_rows(0); y++) {
         if (memcmp(fb_shadow[y], fb_live[y], SURFACE_FB_COLS) != 0 ||
             memcmp(fb_shadow_at[y], fb_live_at[y], SURFACE_FB_COLS) != 0) fb_dirty[y] = 1;
     }
@@ -100,7 +102,7 @@ void surface_fb_flush(void)
 {
     int y, x;
 
-    for (y = 0; y < SURFACE_FB_ROWS; y++) {
+    for (y = 0; y < fb_rows(0); y++) {
         if (!fb_dirty[y]) continue;
         for (x = 0; x < SURFACE_FB_COLS - fb_left; x++) {
             if (fb_shadow[y][x] == fb_live[y][x] && fb_shadow_at[y][x] == fb_live_at[y][x]) continue;
@@ -121,7 +123,7 @@ static void fb_redraw_all(void)
 
 static void fb_load_ink(void)
 {
-    const uint16_t *ink = colour_theme_ink(fb_theme);
+    const uint16_t *ink = colour_theme_ink();
     int i;
 
     for (i = 0; i < 16; i++) fb_ink[i] = FROM555(ink[i]);
@@ -130,6 +132,7 @@ static void fb_load_ink(void)
 static void fb_apply_mode(void)
 {
     fb_left = fb_480 ? 0 : 1;
+    fb_inset = fb_480 ? fb_inset_480 : fb_inset_240;
     if (fb_480) {
         fb_cell_h = 16;
         vid_set_mode(DM_640x480, PM_RGB565);
@@ -144,10 +147,28 @@ int surface_fb_is_480(void) { return fb_480; }
 
 int surface_fb_cols(void) { return SURFACE_FB_COLS - fb_left; }
 
-void surface_fb_next_theme(void)
+int surface_fb_rows(void) { return fb_rows(0); }
+
+int surface_fb_inset(void) { return fb_inset; }
+
+void surface_fb_recolour(void)
 {
-    fb_theme = colour_theme_next(fb_theme);
     fb_load_ink();
+    fb_redraw_all();
+}
+
+void surface_fb_nudge(int delta)
+{
+    int n = fb_inset + delta;
+
+    if (n < 0) n = 0;
+    if (n > SURFACE_FB_INSET_MAX) n = SURFACE_FB_INSET_MAX;
+    if (n == fb_inset) return;
+
+    fb_inset = n;
+    if (fb_480) fb_inset_480 = n; else fb_inset_240 = n;
+    fb_clear(0);
+    vid_clear(0, 0, 0);
     fb_redraw_all();
 }
 

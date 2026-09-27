@@ -34,14 +34,15 @@ static int sa_gutter_wide   = 4;
 #define TVMD_HRESO_640 0x0002
 #define TVMD_HRESO_704 0x0003
 
-#define SA_PALETTE_INK(p) (((uint16_t *)(VDP2_COLRAM + ((p) << 6)))[1])
+#define VDP2_RAMCTL_REG (*(volatile uint16_t *)0x25f8000e)
 
-static int sa_theme = 0;
+#define SA_PALETTE_INK(p) (((uint16_t *)(VDP2_COLRAM + ((p) << 5)))[1])
+
 static int sa_theme_pending = 0;
 
 static void sa_load_ink(void)
 {
-    const uint16_t *ink = colour_theme_ink(sa_theme);
+    const uint16_t *ink = colour_theme_ink();
     for (int p = 0; p < 16; p++) SA_PALETTE_INK(p) = ink[p];
 }
 
@@ -92,8 +93,7 @@ static void sa_flush(void)
             if (x >= 0 && x < sa_cols_now) {
                 cell = (uint16_t)(sa_base +
                            box_glyph_map((uint8_t)sa_shadow[y][x]));
-                cell |= (uint16_t)((sa_shadow_at[y][x] &
-                           (ANSI_ATTR_COLOUR | ANSI_ATTR_BOLD)) << 12);
+                cell |= (uint16_t)(colour_theme_slot(sa_shadow_at[y][x]) << 12);
             } else {
                 cell = (uint16_t)(sa_base + ' ');
             }
@@ -121,6 +121,8 @@ extern "C" text_surface_t surface_ascii_make(void)
     text_surface_t s;
     int y;
 
+    slColRAMMode(CRM16_2048);
+    VDP2_RAMCTL_REG = VDP2_RAMCTL;
     slMapNbg3((void *)SA_PAGE_A, (void *)SA_PAGE_B,
               (void *)SA_PAGE_A, (void *)SA_PAGE_B);
     slScrPosNbg3(toFIXED(0.0f), toFIXED(0.0f));
@@ -192,8 +194,7 @@ extern "C" void surface_ascii_nudge(int delta)
 
 extern "C" int surface_ascii_gutter(void) { return sa_gutter; }
 
-extern "C" void surface_ascii_next_theme(void)
+extern "C" void surface_ascii_recolour(void)
 {
-    sa_theme = colour_theme_next(sa_theme);
     sa_theme_pending = 1;
 }

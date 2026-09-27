@@ -1,5 +1,7 @@
 #include "console_view.h"
 #include "console.h"
+#include "cell_attr.h"
+#include <string.h>
 
 #define CONSOLE_VIEW_ROW_MAX 256
 
@@ -52,6 +54,7 @@ void console_view_paint(const ConsoleView *v, const text_surface_t *s,
                         const char *input, int caret, int masked)
 {
     char row[CONSOLE_VIEW_ROW_MAX];
+    unsigned char ink[CONSOLE_VIEW_ROW_MAX];
     int cols = s->cols(s->ctx);
     int top_row, rows, input_row;
     int top, i, n, width, start, k;
@@ -83,7 +86,8 @@ void console_view_paint(const ConsoleView *v, const text_surface_t *s,
         row[k++] = masked ? '*' : input[i];
     }
     row[k] = '\0';
-    s->put(s->ctx, 0, input_row, row, 0);
+    memset(ink, CELL_ATTR_YOU, sizeof ink);
+    s->put(s->ctx, 0, input_row, row, ink);
 
     s->present(s->ctx);
 }

@@ -23,7 +23,7 @@ void surface_ascii_set_wide(int wide);
 int  surface_ascii_is_wide(void);
 int  surface_ascii_cols(void);
 
-void surface_ascii_next_theme(void);
+void surface_ascii_recolour(void);
 
 #ifdef __cplusplus
 }

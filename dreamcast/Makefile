@@ -11,7 +11,7 @@ SOURCES = src/main.c \
           src/video/font8x8.c \
           src/input/dc_keyboard.c \
           src/net/dc_link.c \
-          $(CORE)/session/session.c \
+          $(CORE)/session/session.c           $(CORE)/session/splash.c \
           $(CORE)/telnet/telnet.c \
           $(CORE)/telnet/ansi.c \
           $(ADAPTERS)/tcp/transport_tcp.c \
@@ -65,7 +65,7 @@ $(BUILD)/IP.BIN: | $(BUILD)
 	$(MAKEIP) -g "SATURN LINK MIDGAARD" -c "SUINEVERE" -n "T-41800" -f $@
 
 $(BUILD)/cmud.iso: $(BUILD)/1ST_READ.BIN $(BUILD)/IP.BIN
-	mkisofs -C 0,11702 -V COFFEEMUD -G $(BUILD)/IP.BIN -r -J -l -o $@ $(BUILD)/cd
+	mkisofs -C 0,11702 -V SATURN_LINK_MIDGAARD -G $(BUILD)/IP.BIN -r -J -l -o $@ $(BUILD)/cd
 
 $(CDI): $(BUILD)/cmud.iso
 ifeq ($(CDI_TOOL),cdi4dc)

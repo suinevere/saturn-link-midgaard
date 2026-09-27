@@ -1,11 +1,27 @@
 #include "test_util.h"
 #include "console.h"
+#include "cell_attr.h"
 
 static void put(const char *s)
 {
     int n = 0;
     while (s[n] != '\0') n++;
     console_write(s, n);
+}
+
+TEST(rewrapping_keeps_each_character_colour)
+{
+    const unsigned char *at;
+    console_init();
+    console_set_cols(64);
+    console_write_as("red words", 9, 1);
+    console_write_as(" you", 4, CELL_ATTR_YOU);
+    console_set_cols(40);
+    at = console_get_attrs(0);
+    CHECK_STR(console_get_line(0), "red words you");
+    CHECK_INT(at[0], 1);
+    CHECK_INT(at[8], 1);
+    CHECK_INT(at[10], CELL_ATTR_YOU);
 }
 
 TEST(a_newline_ends_a_line)
@@ -79,6 +95,7 @@ TEST(the_total_keeps_counting_past_eviction)
 
 int main(void)
 {
+    RUN(rewrapping_keeps_each_character_colour);
     RUN(a_newline_ends_a_line);
     RUN(carriage_returns_are_dropped);
     RUN(text_wraps_at_the_set_width);

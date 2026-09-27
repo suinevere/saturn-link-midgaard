@@ -184,6 +184,9 @@ extern "C" CmudKeyEvent saturn_keyboard_poll(void) {
     if (code == 139)              { ev.kind = CMUD_KEY_PAGEUP;   return ev; }
     if (code == 140)              { ev.kind = CMUD_KEY_PAGEDOWN; return ev; }
 
+    if (code == 0x03)             { ev.kind = CMUD_KEY_F5;  return ev; }
+    if (code == 0x0B)             { ev.kind = CMUD_KEY_F6;  return ev; }
+    if (code == 0x83)             { ev.kind = CMUD_KEY_F7;  return ev; }
     if (code == 0x0A)             { ev.kind = CMUD_KEY_F8;  return ev; }
     if (code == 0x01)             { ev.kind = CMUD_KEY_F9;  return ev; }
     if (code == 0x09)             { ev.kind = CMUD_KEY_F10; return ev; }

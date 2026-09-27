@@ -14,7 +14,7 @@ SGL_MAX_POLYGONS = 8
 SGL_MAX_EVENTS = 1
 SGL_MAX_WORKS = 1
 
-CD_NAME = CoffeeMUD Saturn (USA)
+CD_NAME = Saturn Link Midgaard (USA)
 
 BUILD_DROP = ./BuildDrop
 

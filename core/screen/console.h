@@ -17,6 +17,7 @@ void console_init(void);
 void console_write(const char *str, unsigned int len);
 
 void console_write_attr(const char *str, const unsigned char *attrs, unsigned int len);
+void console_write_as(const char *str, unsigned int len, unsigned char attr);
 const unsigned char *console_get_attrs(int index);
 int  console_line_count(void);
 long console_total_lines(void);

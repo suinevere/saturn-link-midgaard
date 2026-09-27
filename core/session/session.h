@@ -19,11 +19,14 @@ typedef struct session_platform {
     void (*close)(void);
     int  (*on_key)(const CmudKeyEvent *ev);
     void (*align_geometry)(int *wide, int *gutter);
+    void (*recolour)(void);
 } session_platform_t;
 
 void session_init(const session_platform_t *p);
 
 void session_say(const char *msg);
+
+void session_splash(void);
 
 void session_present(void);
 

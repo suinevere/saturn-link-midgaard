@@ -13,6 +13,8 @@
 
 static int             g_fd = -1;
 static cui_transport_t g_tr;
+static const char     *g_host;
+static int             g_port;
 
 static void quit(int status)
 {
@@ -29,6 +31,21 @@ static CmudKeyEvent event(CmudKeyKind kind, char ch)
     return ev;
 }
 
+static CmudKeyEvent function_key(int lead)
+{
+    int n = (lead - '0') * 10 + (surface_term_getkey() - '0');
+
+    surface_term_getkey();
+    switch (n) {
+    case 15: return event(CMUD_KEY_F5, 0);
+    case 17: return event(CMUD_KEY_F6, 0);
+    case 18: return event(CMUD_KEY_F7, 0);
+    case 19: return event(CMUD_KEY_F8, 0);
+    case 20: return event(CMUD_KEY_F9, 0);
+    default: return event(CMUD_KEY_NONE, 0);
+    }
+}
+
 static CmudKeyEvent escape_sequence(void)
 {
     int c = surface_term_getkey();
@@ -43,6 +60,8 @@ static CmudKeyEvent escape_sequence(void)
     case 'D': return event(CMUD_KEY_LEFT, 0);
     case 'H': return event(CMUD_KEY_HOME, 0);
     case 'F': return event(CMUD_KEY_END, 0);
+    case '1':
+    case '2': return function_key(d);
     case '3': surface_term_getkey(); return event(CMUD_KEY_DELETE, 0);
     case '5': surface_term_getkey(); return event(CMUD_KEY_PAGEUP, 0);
     case '6': surface_term_getkey(); return event(CMUD_KEY_PAGEDOWN, 0);
@@ -63,6 +82,11 @@ static CmudKeyEvent console_extended(void)
     case 83: return event(CMUD_KEY_DELETE, 0);
     case 73: return event(CMUD_KEY_PAGEUP, 0);
     case 81: return event(CMUD_KEY_PAGEDOWN, 0);
+    case 63: return event(CMUD_KEY_F5, 0);
+    case 64: return event(CMUD_KEY_F6, 0);
+    case 65: return event(CMUD_KEY_F7, 0);
+    case 66: return event(CMUD_KEY_F8, 0);
+    case 67: return event(CMUD_KEY_F9, 0);
     default: return event(CMUD_KEY_NONE, 0);
     }
 }
@@ -87,6 +111,12 @@ static CmudKeyEvent poll_key(void)
 
 static const cui_transport_t *open_link(void)
 {
+    g_fd = transport_tcp_open(g_host, g_port);
+    if (g_fd < 0) {
+        session_say("CANNOT CONNECT");
+        return 0;
+    }
+    g_tr = transport_tcp_make(g_fd);
     return &g_tr;
 }
 
@@ -99,15 +129,8 @@ int main(int argc, char **argv)
 {
     static text_surface_t s;
     static session_platform_t plat;
-    const char *host = (argc > 1) ? argv[1] : "127.0.0.1";
-    int port = (argc > 2) ? atoi(argv[2]) : 5555;
-
-    g_fd = transport_tcp_open(host, port);
-    if (g_fd < 0) {
-        fprintf(stderr, "cannot connect to %s:%d\n", host, port);
-        return 1;
-    }
-    g_tr = transport_tcp_make(g_fd);
+    g_host = (argc > 1) ? argv[1] : "127.0.0.1";
+    g_port = (argc > 2) ? atoi(argv[2]) : 5555;
 
     s = surface_term_make(HOST_COLS, HOST_ROWS);
     surface_term_raw();
@@ -121,6 +144,7 @@ int main(int argc, char **argv)
     plat.open          = open_link;
     plat.close         = close_link;
     session_init(&plat);
+    session_splash();
 
     session_run();
     return 0;

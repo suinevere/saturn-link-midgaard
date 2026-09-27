@@ -1,7 +1,7 @@
 :; "../SaturnRingLib/tools/scripts/run.sh" mednafen; exit;
 @ECHO Off
 SETLOCAL
-SET "CUE=%~dp0BuildDrop\CoffeeMUD Saturn (USA).cue"
+SET "CUE=%~dp0BuildDrop\Saturn Link Midgaard (USA).cue"
 IF NOT EXIST "%CUE%" (ECHO Build first: compile.bat debug & GOTO :eof)
 SET "MEDNAFEN=%~dp0..\SaturnRingLib\emulators\mednafen\mednafen.exe"
 IF NOT EXIST "%MEDNAFEN%" SET "MEDNAFEN=mednafen.exe"
