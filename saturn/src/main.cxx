@@ -7,6 +7,10 @@ extern "C" {
 #include "net_connect.h"
 }
 
+#ifndef NETBIN
+#include "saturn_sound.h"
+#endif
+
 #define CMUD_RESOLUTION SRL::TV::Resolutions::Normal640x240
 
 #define CMUD_MARGIN_TOP    2
@@ -139,6 +143,9 @@ int main()
     plat.on_key         = on_key;
     plat.align_geometry = align_geometry;
     plat.recolour       = surface_ascii_recolour;
+#ifndef NETBIN
+    plat.sound          = saturn_sound_init();
+#endif
     session_init(&plat);
     session_splash();
 

@@ -22,14 +22,18 @@ SRL_INSTALL_ROOT ?= ../SaturnRingLib
 
 CORE                = ../core
 NETBIN_ONLY_SOURCES = src/system/netbin_nocd.c
+DISC_ONLY_SOURCES   = src/sound/saturn_sound.cxx
 SOURCES  = $(patsubst ./%,%,$(shell find src/ $(CORE)/ -name '*.c'))
 SOURCES += $(patsubst ./%,%,$(shell find src/ -name '*.cxx'))
 SOURCES := $(filter-out $(NETBIN_ONLY_SOURCES),$(SOURCES))
 
 ifeq ($(strip $(NETBIN)),1)
+SOURCES := $(filter-out $(DISC_ONLY_SOURCES),$(SOURCES))
 SOURCES += $(NETBIN_ONLY_SOURCES)
 SRL_CUSTOM_CCFLAGS += -DNETBIN
 BUILD_NETBIN = $(BUILD_DROP)/coffeemud.netbin
+else
+SRL_USE_SGL_SOUND_DRIVER = 1
 endif
 
 SRL_CUSTOM_CCFLAGS += $(patsubst %,-I%,$(shell find src $(CORE) -type d))

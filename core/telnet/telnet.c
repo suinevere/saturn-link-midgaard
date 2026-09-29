@@ -4,9 +4,22 @@
 #define MCP_PASS  1
 #define MCP_DROP  2
 
+static void deliver(void *ctx, char c, unsigned char attr)
+{
+    TelnetState *t = (TelnetState *)ctx;
+    if (t->text) t->text(t->text_ctx, &c, &attr, 1);
+}
+
+static void play_cue(void *ctx, const MspCue *cue)
+{
+    TelnetState *t = (TelnetState *)ctx;
+    if (t->cue) t->cue(t->cue_ctx, cue);
+}
+
 static void sink(TelnetState *t, char c, unsigned char attr)
 {
-    if (t->text) t->text(t->text_ctx, &c, &attr, 1);
+    if (t->msp_on) msp_feed(&t->msp, c, attr, deliver, play_cue, t);
+    else deliver(t, c, attr);
 }
 
 static void mcp_release(TelnetState *t)
@@ -110,6 +123,12 @@ static void telnet_option(TelnetState *t, unsigned char verb, unsigned char opt)
             send_cmd(t, TN_DO, TNOPT_ECHO);
         } else if (opt == TNOPT_SGA) {
             send_cmd(t, TN_DO, TNOPT_SGA);
+        } else if (opt == TNOPT_MSP && t->cue) {
+            if (!t->msp_on) {
+                t->msp_on = 1;
+                msp_init(&t->msp);
+                send_cmd(t, TN_DO, TNOPT_MSP);
+            }
         } else if (!already_refused(t, opt)) {
             send_cmd(t, TN_DONT, opt);
         }
@@ -119,6 +138,8 @@ static void telnet_option(TelnetState *t, unsigned char verb, unsigned char opt)
         if (opt == TNOPT_ECHO) {
             t->server_echo = 0;
             send_cmd(t, TN_DONT, TNOPT_ECHO);
+        } else if (opt == TNOPT_MSP) {
+            t->msp_on = 0;
         }
         return;
 
@@ -141,6 +162,12 @@ void telnet_resize(TelnetState *t, int cols, int rows)
     send_naws(t);
 }
 
+void telnet_set_sound(TelnetState *t, msp_cue_fn cue, void *ctx)
+{
+    t->cue = cue;
+    t->cue_ctx = ctx;
+}
+
 void telnet_init(TelnetState *t, const cui_transport_t *tr,
                  int cols, int rows, telnet_text_fn text, void *text_ctx)
 {
@@ -153,6 +180,10 @@ void telnet_init(TelnetState *t, const cui_transport_t *tr,
     t->server_echo = 0;
     t->mcp_mode = MCP_MATCH;
     t->mcp_held = 0;
+    t->cue = 0;
+    t->cue_ctx = 0;
+    t->msp_on = 0;
+    msp_init(&t->msp);
     t->cols = cols;
     t->rows = rows;
     t->tr = tr;

@@ -3,6 +3,7 @@
 #include "text_surface.h"
 #include "cui_transport.h"
 #include "key_event.h"
+#include "cui_sound.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,6 +21,7 @@ typedef struct session_platform {
     int  (*on_key)(const CmudKeyEvent *ev);
     void (*align_geometry)(int *wide, int *gutter);
     void (*recolour)(void);
+    const cui_sound_t *sound;
 } session_platform_t;
 
 void session_init(const session_platform_t *p);

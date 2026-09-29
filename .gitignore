@@ -23,3 +23,5 @@ Desktop.ini
 .env
 
 .worktrees/
+
+saturn/cd/data/

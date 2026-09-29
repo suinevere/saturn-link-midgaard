@@ -27,7 +27,7 @@ jobs:
       - name: Install host tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xorriso sox unzip wget
+          sudo apt-get install -y --no-install-recommends xorriso sox unzip wget ffmpeg
 
       - name: Run host tests
         run: tests/run.sh
@@ -82,6 +82,9 @@ jobs:
         working-directory: saturn
         run: bash ./compile-netbin.bat release
 
+      - name: Build the Saturn sound pack
+        run: sh sound/sound-pack.sh saturn saturn/cd/data/SOUNDS.PAK
+
       - name: Build release disc
         working-directory: saturn
         run: bash ./compile.bat release
@@ -99,6 +102,8 @@ jobs:
           [ $((size % 2352)) -eq 0 ] \
             || { echo "bin is $size bytes, not a whole number of 2352-byte MODE1/2352 sectors" >&2; exit 1; }
           echo "OK: $name.bin is $size bytes ($((size / 2352)) sectors)"
+          grep -aq 'SOUNDS.PAK' "BuildDrop/$name.iso" || { echo 'no SOUNDS.PAK on the disc' >&2; exit 1; }
+          grep -aq 'SDDRVS.TSK' "BuildDrop/$name.iso" || { echo 'no sound driver on the disc' >&2; exit 1; }
           cat "BuildDrop/$name.cue"
 
       - name: Verify netbin
@@ -178,7 +183,29 @@ jobs:
             exit 1
           fi
 
+  sounds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg unzip
+
+      - name: Build the Dreamcast sound pack
+        run: sh sound/sound-pack.sh dreamcast sounds-dreamcast
+
+      - name: Upload the Dreamcast sound pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: sounds-dreamcast
+          path: sounds-dreamcast/*.wav
+          if-no-files-found: error
+
   dreamcast:
+    needs: sounds
     runs-on: ubuntu-latest
     container:
       image: kazade/dreamcast-sdk@sha256:7202a5d5d007bcb7802c48f1bf30b22d03e337927543b5396130f8420c6f37ec
@@ -188,6 +215,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download the sound pack
+        uses: actions/download-artifact@v4
+        with:
+          name: sounds-dreamcast
+          path: dreamcast/sounds
 
       - name: Build CDI
         working-directory: dreamcast
@@ -205,7 +238,7 @@ jobs:
           set +u
           source /opt/toolchains/dc/kos/environ.sh
           set -u
-          make cdi CMUD_SECRET="${CMUD_SECRET:-}"
+          make cdi CMUD_SECRET="${CMUD_SECRET:-}" SOUNDS=sounds
 
       - name: Verify CDI
         working-directory: dreamcast
@@ -214,6 +247,10 @@ jobs:
           test -s build/cmud.cdi || { echo 'missing build/cmud.cdi' >&2; exit 1; }
           grep -q 'SEGA SEGAKATANA' build/cmud.cdi || { echo 'no IP.BIN in the CDI' >&2; exit 1; }
           grep -aq '1ST_READ.BIN' build/cmud.cdi || { echo 'no 1ST_READ.BIN in the CDI' >&2; exit 1; }
+          grep -aqi 'bark.wav' build/cmud.cdi || { echo 'no sound pack in the CDI' >&2; exit 1; }
+          n=$(ls build/cd/sounds/*.wav | wc -l)
+          echo "sounds on the disc: $n"
+          [ "$n" -ge 150 ] || { echo "only $n sounds reached the disc" >&2; exit 1; }
           sz=$(stat -c%s build/cmud.cdi)
           echo "cmud.cdi: $sz bytes"
           [ "$sz" -gt 1048576 ] || { echo 'CDI implausibly small - did the link fail?' >&2; exit 1; }

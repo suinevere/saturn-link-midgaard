@@ -23,11 +23,33 @@ static LineEdit    g_edit;
 static TelnetState g_telnet;
 
 static int g_align = 0;
+static int g_muted = 0;
 
 static void to_console(void *ctx, const char *s, const unsigned char *at, int len)
 {
     (void)ctx;
     console_write_attr(s, at, (unsigned int)len);
+}
+
+static int is_off(const char *name)
+{
+    return name[0] == 'o' && name[1] == 'f' && name[2] == 'f' && name[3] == '\0';
+}
+
+static void on_cue(void *ctx, const MspCue *cue)
+{
+    (void)ctx;
+    if (is_off(cue->name)) { cui_sound_stop(g_plat->sound); return; }
+    if (g_muted || cue->music) return;
+    cui_sound_play(g_plat->sound, cue->name, cue->volume, cue->loops, cue->priority);
+}
+
+static void toggle_mute(void)
+{
+    if (!g_plat->sound) return;
+    g_muted = !g_muted;
+    if (g_muted) cui_sound_stop(g_plat->sound);
+    session_say(g_muted ? "SOUND OFF" : "SOUND ON");
 }
 
 static int surface_cols(void)
@@ -50,6 +72,7 @@ static void paint(int masked)
 void session_init(const session_platform_t *p)
 {
     g_plat = p;
+    g_muted = 0;
     g_text_rows = p->text_rows;
     console_init();
     console_set_cols(surface_cols());
@@ -127,6 +150,7 @@ void session_handle_key(const CmudKeyEvent *ev)
     case CMUD_KEY_F7:        recolour(COLOUR_ROLE_NOTE); break;
     case CMUD_KEY_F8:        recolour(COLOUR_ROLE_MUD); break;
     case CMUD_KEY_F9:        g_align = !g_align; break;
+    case CMUD_KEY_F4:        toggle_mute(); break;
     case CMUD_KEY_ENTER:
         if (!telnet_server_echo(&g_telnet)) {
             console_write_as("> ", 2, CELL_ATTR_YOU);
@@ -148,6 +172,7 @@ void session_terminal(const cui_transport_t *tr)
 
     telnet_init(&g_telnet, tr, surface_cols() + CMUD_NAWS_SLACK, g_text_rows,
                 to_console, 0);
+    if (g_plat->sound) telnet_set_sound(&g_telnet, on_cue, 0);
     telnet_hello(&g_telnet);
     line_edit_init(&g_edit);
     console_view_init(&g_view);
@@ -169,10 +194,12 @@ void session_terminal(const cui_transport_t *tr)
         carrier_gone = cui_transport_is_connected(tr) ? 0 : carrier_gone + 1;
         if (carrier_gone >= CMUD_CARRIER_LOST_FRAMES) break;
 
+        cui_sound_service(g_plat->sound);
         paint(telnet_server_echo(&g_telnet));
         g_plat->wait_frame();
     }
 
+    cui_sound_stop(g_plat->sound);
     session_say("");
     session_say("CARRIER LOST");
 }

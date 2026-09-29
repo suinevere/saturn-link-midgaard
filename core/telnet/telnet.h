@@ -2,6 +2,7 @@
 #define TELNET_H
 #include "cui_transport.h"
 #include "ansi.h"
+#include "msp.h"
 
 #define TELNET_RX_BUDGET 512
 
@@ -19,6 +20,7 @@
 #define TNOPT_SGA    3
 #define TNOPT_TTYPE  24
 #define TNOPT_NAWS   31
+#define TNOPT_MSP    90
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +55,11 @@ typedef struct {
     char          mcp_buf[3];
     unsigned char mcp_attr[3];
 
+    msp_cue_fn    cue;
+    void         *cue_ctx;
+    int           msp_on;
+    MspFilter     msp;
+
     const cui_transport_t *tr;
     AnsiState      ansi;
     telnet_text_fn text;
@@ -63,6 +70,8 @@ void telnet_init(TelnetState *t, const cui_transport_t *tr,
                  int cols, int rows, telnet_text_fn text, void *text_ctx);
 
 void telnet_resize(TelnetState *t, int cols, int rows);
+
+void telnet_set_sound(TelnetState *t, msp_cue_fn cue, void *ctx);
 
 int telnet_service(TelnetState *t, int max_bytes);
 

@@ -3,6 +3,7 @@
 #include "surface_fb.h"
 #include "dc_keyboard.h"
 #include "dc_link.h"
+#include "dc_sound.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT | INIT_NET);
 
@@ -55,6 +56,7 @@ int main(int argc, char **argv)
     plat.on_key         = on_key;
     plat.align_geometry = align_geometry;
     plat.recolour       = surface_fb_recolour;
+    plat.sound          = dc_sound_init();
     session_init(&plat);
 
     session_splash();

@@ -260,6 +260,58 @@ TEST(ordinary_text_beginning_with_a_hash_survives)
     CHECK_STR(g_text, "#$5 is the price\n# alone\n");
 }
 
+static int  g_cues;
+static char g_cue_name[32];
+
+static void cue_sink(void *ctx, const MspCue *cue)
+{
+    int i;
+    (void)ctx;
+    g_cues++;
+    for (i = 0; cue->name[i] && i < 31; i++) g_cue_name[i] = cue->name[i];
+    g_cue_name[i] = '\0';
+}
+
+TEST(msp_is_refused_without_a_sound_handler)
+{
+    static const unsigned char in[] = { TN_IAC, TN_WILL, TNOPT_MSP };
+    static const unsigned char want[] = { TN_IAC, TN_DONT, TNOPT_MSP };
+    FakeLink f;
+    TelnetState t;
+    drive(in, 3, &f, &t);
+    CHECK_INT(f.out_len, 3);
+    CHECK_MEM(f.out, want, 3);
+}
+
+TEST(msp_is_accepted_with_a_sound_handler_and_cues_are_played_not_shown)
+{
+    static const unsigned char in[] = "\xff\xfb\x5aYou hit!!SOUND(hit1.wav V=50) the orc.\n";
+    static const unsigned char want[] = { TN_IAC, TN_DO, TNOPT_MSP };
+    FakeLink f;
+    TelnetState t;
+    g_text_len = 0;
+    g_text[0] = '\0';
+    g_cues = 0;
+    fake_link_init(&f, in, (int)sizeof(in) - 1);
+    g_tr = fake_link_make(&f);
+    telnet_init(&t, &g_tr, 64, 59, text_sink, 0);
+    telnet_set_sound(&t, cue_sink, 0);
+    telnet_service(&t, TELNET_RX_BUDGET);
+    CHECK_MEM(f.out, want, 3);
+    CHECK_STR(g_text, "You hit the orc.\n");
+    CHECK_INT(g_cues, 1);
+    CHECK_STR(g_cue_name, "hit1");
+}
+
+TEST(cues_are_left_alone_when_sound_was_never_negotiated)
+{
+    static const unsigned char in[] = "!!SOUND(bark)\n";
+    FakeLink f;
+    TelnetState t;
+    drive(in, (int)sizeof(in) - 1, &f, &t);
+    CHECK_STR(g_text, "!!SOUND(bark)\n");
+}
+
 int main(void)
 {
     RUN(plain_text_reaches_the_sink);
@@ -280,5 +332,8 @@ int main(void)
     RUN(an_mcp_line_split_across_two_services_is_still_dropped);
     RUN(a_quoted_line_loses_only_its_prefix);
     RUN(ordinary_text_beginning_with_a_hash_survives);
+    RUN(msp_is_refused_without_a_sound_handler);
+    RUN(msp_is_accepted_with_a_sound_handler_and_cues_are_played_not_shown);
+    RUN(cues_are_left_alone_when_sound_was_never_negotiated);
     TEST_MAIN_END();
 }

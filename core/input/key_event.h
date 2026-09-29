@@ -33,7 +33,8 @@ typedef enum {
     CMUD_KEY_CTRL_RIGHT,
     CMUD_KEY_CTRL_UP,
     CMUD_KEY_CTRL_DOWN,
-    CMUD_KEY_DELETE
+    CMUD_KEY_DELETE,
+    CMUD_KEY_F4
 } CmudKeyKind;
 
 typedef struct {

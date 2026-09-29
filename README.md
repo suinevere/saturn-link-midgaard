@@ -59,6 +59,10 @@ Dreamcast.
 
 **All Versions require a keyboard.**
 
+**Sound.** The Dreamcast disc and the burned Saturn disc play the game's sound
+effects: type `SOUNDS` once in game to have them sent, and F4 mutes them. The
+Saturn netbin has no room for them and plays none.
+
 | Key | Action |
 | --- | --- |
 | Enter | Send the line |
@@ -69,6 +73,7 @@ Dreamcast.
 | Page Up, Page Down | Scroll back and forward |
 | Ctrl+Up, Ctrl+Down | Scroll one line |
 | Esc twice within a second | Hang up |
+| F4 | Mute or unmute sound, on the discs |
 | F5 | Cycle the colour of the MUD's plain text |
 | F6 | Cycle the colour of what you type and your sent lines |
 | F7 | Cycle the colour of the client's own messages |
@@ -86,8 +91,9 @@ core/            code shared by every build, one folder per feature
   screen/        scrollback, its view, colours, box glyphs, alignment ruler
   input/         key events and the line editor
   proxy/         the AUTH handshake the suin.uk proxy expects
-  ports/         the screen and connection interfaces each platform provides
+  ports/         the screen, connection and sound interfaces each platform provides
 adapters/tcp/    the socket code the Dreamcast and PC builds share
+sound/           builds the discs' sound packs from CoffeeMUD's sounds.zip
 saturn/          the Saturn build: SaturnRingLib project, modem, VDP2 screen
 dreamcast/       the Dreamcast build: KallistiOS, framebuffer, BBA and PPP
 host/            a PC build of the client, for testing without a console
@@ -122,6 +128,10 @@ Each `.bat` file also runs as a shell script, so the same commands work in Git
 Bash, Linux and macOS. The netbin must stay under the PlanetWeb loader's 400 KB
 limit, and `package-netbin.sh` fails the build if it does not.
 
+For sound on the disc, first run `sh sound/sound-pack.sh saturn
+saturn/cd/data/SOUNDS.PAK` from the repository root; it needs ffmpeg, unzip and
+python3. Without the pack the disc still builds, silently.
+
 `run_with_mednafen.bat` starts the disc in Mednafen, which needs a Saturn BIOS.
 Mednafen has no NetLink, so it shows the screen but cannot connect.
 
@@ -135,6 +145,9 @@ make                          # build/cmud.elf, for dcload-ip or an emulator
 make cdi CMUD_SECRET=...      # build/cmud.cdi, for a CD-R or an emulator
 make run                      # send the ELF to a console over dcload-ip
 ```
+
+For sound, run `sh sound/sound-pack.sh dreamcast dreamcast/sounds` from the
+repository root and add `SOUNDS=sounds` to `make cdi`.
 
 The suin.uk proxy only relays connections that send its shared secret first. On
 the Saturn the DreamPi sends it; the Dreamcast sends it itself, so `make cdi`
@@ -176,6 +189,8 @@ are needed:
 - The world is from CoffeeMUD's area archive: DikuMUD's Midgaard, Haon Dor and
   Sewers, by the DikuMUD authors at the University of Copenhagen, and the native,
   CircleMUD and SMAUG areas of the builders each area file names.
+- The sound effects are CoffeeMUD's MSP pack, `sounds.zip`, as published at
+  coffeemud.net and in the CoffeeMUD repository; the discs carry converted copies.
 - SaturnRingLib by ReyeMe and contributors, the Saturn SDK. SEGA's SGL library
   and the SH-2 compiler come with it under their own terms.
 - KallistiOS, the Dreamcast SDK. The 480p text uses its 8x16 "Naomi" font.
