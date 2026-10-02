@@ -1,20 +1,8 @@
 # Saturn Link : Midgaard
 
-```
-              _.--------._
-         _.-'      /\   +  '-._
-      .-'  +      /**\         '-.
-    .'    /\     /.* *\   +       '.
-   /     /**\   /   .  \    /\      \
-  |     /*.* \ /  .   . \  /**\      |
-  |    /.   . V .   .   .\/ * *\     |
-  |   /   .   .   .   .   .   . \    |
-   \   ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^    /
-    './^\ /^\ /^\ /^\ /^\ /^\ /^\ .'
-      '-.__|___|___|___|___|___.-'
-         '-._~~~~~~~~~~~~~~_.-'
-              '----------'
-```
+<p align="center">
+  <img src=".github/logo.svg" alt="A ring of snow-capped peaks above a row of trees, the Saturn Link title screen logo">
+</p>
 
 A Multi-User Dungeon (MUD) client for the Sega Saturn and Dreamcast.
 
