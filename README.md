@@ -1,4 +1,21 @@
 # Saturn Link : Midgaard
+
+```
+              _.--------._
+         _.-'      /\   +  '-._
+      .-'  +      /**\         '-.
+    .'    /\     /.* *\   +       '.
+   /     /**\   /   .  \    /\      \
+  |     /*.* \ /  .   . \  /**\      |
+  |    /.   . V .   .   .\/ * *\     |
+  |   /   .   .   .   .   .   . \    |
+   \   ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^    /
+    './^\ /^\ /^\ /^\ /^\ /^\ /^\ .'
+      '-.__|___|___|___|___|___.-'
+         '-._~~~~~~~~~~~~~~_.-'
+              '----------'
+```
+
 A Multi-User Dungeon (MUD) client for the Sega Saturn and Dreamcast.
 
 A rehost of [CoffeeMUD](https://github.com/bozimmerman/CoffeeMud) for the Sega Saturn and Dreamcast.
